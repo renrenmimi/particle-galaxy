@@ -1,0 +1,2050 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <title>🔬 Particle Galaxy</title>
+    <style>
+      :root {
+        --bg: #02030a;
+        --panel: rgba(9, 12, 20, 0.74);
+        --panel-border: rgba(132, 157, 234, 0.32);
+        --text: #dce8ff;
+        --subtext: #91a5d4;
+        --accent: #7cd2ff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--bg);
+        font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+
+      body {
+        user-select: none;
+        touch-action: none;
+      }
+
+      #app {
+        position: fixed;
+        inset: 0;
+      }
+
+      #canvas {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        touch-action: none;
+      }
+
+      #hud {
+        position: absolute;
+        left: max(10px, env(safe-area-inset-left));
+        top: max(10px, env(safe-area-inset-top));
+        width: min(360px, calc(100vw - 20px));
+        padding: 10px;
+        border-radius: 12px;
+        border: 1px solid var(--panel-border);
+        background: linear-gradient(150deg, rgba(15, 20, 34, 0.82), rgba(8, 10, 16, 0.65));
+        backdrop-filter: blur(8px);
+        box-shadow:
+          0 10px 40px rgba(0, 0, 0, 0.45),
+          inset 0 0 14px rgba(136, 170, 255, 0.08);
+        color: var(--text);
+        z-index: 10;
+        opacity: 1;
+        transition: opacity 260ms ease, transform 260ms ease;
+      }
+
+      #hud.hidden {
+        opacity: 0;
+        transform: translateY(-6px);
+        pointer-events: none;
+      }
+
+      .hud-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+
+      .hud-row:last-child {
+        margin-bottom: 0;
+      }
+
+      .hud-title {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--subtext);
+      }
+
+      .hud-value {
+        font-size: 12px;
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      .hud-label {
+        font-size: 11px;
+        color: var(--text);
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+      }
+
+      input[type="range"] {
+        width: 57%;
+        accent-color: #7edbff;
+      }
+
+      .btn-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+        margin-bottom: 8px;
+      }
+
+      .btn-row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+      }
+
+      button,
+      .toggle {
+        border: 1px solid rgba(125, 155, 236, 0.4);
+        border-radius: 9px;
+        background: rgba(12, 17, 30, 0.86);
+        color: #e7f1ff;
+        font-size: 11px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        padding: 7px 8px;
+        cursor: pointer;
+        transition: transform 120ms ease, background 120ms ease;
+      }
+
+      button:hover,
+      .toggle:hover {
+        background: rgba(17, 24, 40, 0.94);
+      }
+
+      button:active,
+      .toggle:active {
+        transform: scale(0.97);
+      }
+
+      button.active {
+        border-color: rgba(145, 235, 255, 0.76);
+        box-shadow: 0 0 0 1px rgba(145, 235, 255, 0.4) inset;
+      }
+
+      #status {
+        position: absolute;
+        right: max(10px, env(safe-area-inset-right));
+        top: max(10px, env(safe-area-inset-top));
+        z-index: 10;
+        color: #d9e9ff;
+        font-size: 12px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        text-align: right;
+        text-shadow: 0 0 12px rgba(121, 179, 255, 0.5);
+        opacity: 0.9;
+        pointer-events: none;
+      }
+
+      #shortcuts {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        display: grid;
+        place-items: center;
+        background: rgba(2, 4, 10, 0.72);
+        backdrop-filter: blur(5px);
+      }
+
+      #shortcuts.hidden {
+        display: none;
+      }
+
+      .shortcut-card {
+        width: min(580px, calc(100vw - 24px));
+        border-radius: 14px;
+        border: 1px solid rgba(145, 170, 232, 0.4);
+        background: linear-gradient(145deg, rgba(15, 20, 33, 0.92), rgba(8, 10, 16, 0.9));
+        color: #ebf2ff;
+        padding: 16px;
+        box-shadow: 0 22px 60px rgba(0, 0, 0, 0.56);
+      }
+
+      .shortcut-card h2 {
+        margin: 0 0 10px;
+        font-size: 18px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .shortcut-list {
+        margin: 0 0 14px;
+        padding-left: 16px;
+        color: #bcd3ff;
+        line-height: 1.55;
+        font-size: 13px;
+      }
+
+      #dismiss-help {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid rgba(144, 212, 255, 0.55);
+        border-radius: 10px;
+        background: rgba(14, 24, 39, 0.95);
+        color: #e6f6ff;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        cursor: pointer;
+      }
+
+      #loading {
+        position: absolute;
+        inset: 0;
+        z-index: 30;
+        display: grid;
+        place-items: center;
+        background: rgba(2, 3, 8, 0.82);
+        backdrop-filter: blur(5px);
+        transition: opacity 260ms ease;
+      }
+
+      #loading.hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .loading-card {
+        display: grid;
+        justify-items: center;
+        gap: 12px;
+        color: #d6e6ff;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-size: 12px;
+      }
+
+      .spinner {
+        width: 42px;
+        height: 42px;
+        border: 2px solid rgba(122, 193, 255, 0.25);
+        border-top-color: rgba(150, 231, 255, 0.92);
+        border-radius: 50%;
+        animation: spin 0.9s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(1turn);
+        }
+      }
+
+      @media (max-width: 760px) {
+        #hud {
+          width: min(340px, calc(100vw - 12px));
+          left: 6px;
+          top: max(6px, env(safe-area-inset-top));
+          padding: 8px;
+        }
+
+        .btn-row {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="canvas"></canvas>
+
+      <div id="hud">
+        <div class="hud-row">
+          <span class="hud-title" id="preset-name">Preset: Spiral Galaxy</span>
+          <span class="hud-value" id="particle-count">Particles: 0</span>
+        </div>
+
+        <div class="hud-row">
+          <span class="hud-label">Simulation Speed</span>
+          <input id="speed-slider" type="range" min="0.1" max="3" step="0.05" value="1" />
+          <span class="hud-value" id="speed-value">1.00x</span>
+        </div>
+
+        <div class="hud-row">
+          <span class="hud-label">Gravity</span>
+          <input id="gravity-slider" type="range" min="8" max="120" step="1" value="46" />
+          <span class="hud-value" id="gravity-value">46</span>
+        </div>
+
+        <div class="btn-grid" id="preset-buttons">
+          <button data-preset="1" class="active">1 Spiral</button>
+          <button data-preset="2">2 Binary</button>
+          <button data-preset="3">3 Collision</button>
+          <button data-preset="4">4 Cloud</button>
+        </div>
+
+        <div class="btn-row">
+          <button id="trail-toggle" class="active">Trails: On</button>
+          <button id="merge-toggle" class="active">Merge: On</button>
+          <button id="screenshot-btn">Screenshot</button>
+          <button id="field-toggle">Field: Off</button>
+          <button id="vector-toggle">Vectors: Off</button>
+          <button id="reset-btn">Reset (R)</button>
+        </div>
+      </div>
+
+      <div id="status">
+        <div id="fps">FPS: --</div>
+        <div id="paused-state"></div>
+      </div>
+
+      <div id="shortcuts" class="hidden">
+        <div class="shortcut-card">
+          <h2>Particle Galaxy Controls</h2>
+          <ul class="shortcut-list">
+            <li>Left click/touch drag then release: place massive attractor + fling nearby particles.</li>
+            <li>Mouse wheel / pinch: zoom in or out.</li>
+            <li>Right-click drag: pan camera.</li>
+            <li>Space: pause/resume. R: reset current preset.</li>
+            <li>1-4: switch initial states. V: velocity vectors. F: force field.</li>
+          </ul>
+          <button id="dismiss-help">Start Exploring</button>
+        </div>
+      </div>
+
+      <div id="loading">
+        <div class="loading-card">
+          <div class="spinner"></div>
+          <div id="loading-text">Generating Galaxy...</div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (() => {
+        "use strict";
+
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d", { alpha: false });
+
+        const hud = document.getElementById("hud");
+        const presetNameEl = document.getElementById("preset-name");
+        const particleCountEl = document.getElementById("particle-count");
+        const speedSlider = document.getElementById("speed-slider");
+        const gravitySlider = document.getElementById("gravity-slider");
+        const speedValueEl = document.getElementById("speed-value");
+        const gravityValueEl = document.getElementById("gravity-value");
+        const presetButtons = Array.from(document.querySelectorAll("#preset-buttons button"));
+
+        const trailToggle = document.getElementById("trail-toggle");
+        const mergeToggle = document.getElementById("merge-toggle");
+        const screenshotBtn = document.getElementById("screenshot-btn");
+        const fieldToggle = document.getElementById("field-toggle");
+        const vectorToggle = document.getElementById("vector-toggle");
+        const resetBtn = document.getElementById("reset-btn");
+
+        const fpsEl = document.getElementById("fps");
+        const pausedStateEl = document.getElementById("paused-state");
+
+        const shortcutsEl = document.getElementById("shortcuts");
+        const dismissHelpBtn = document.getElementById("dismiss-help");
+
+        const loadingEl = document.getElementById("loading");
+        const loadingTextEl = document.getElementById("loading-text");
+
+        const TWO_PI = Math.PI * 2;
+
+        const MAX_PARTICLES = 5600;
+        const TRAIL_LEN = 26;
+        const MAX_NODES = MAX_PARTICLES * 18;
+
+        const TYPE_DUST = 0;
+        const TYPE_PLANET = 1;
+        const TYPE_STAR = 2;
+
+        const px = new Float32Array(MAX_PARTICLES);
+        const py = new Float32Array(MAX_PARTICLES);
+        const pvx = new Float32Array(MAX_PARTICLES);
+        const pvy = new Float32Array(MAX_PARTICLES);
+        const pmass = new Float32Array(MAX_PARTICLES);
+        const pradius = new Float32Array(MAX_PARTICLES);
+        const ptype = new Uint8Array(MAX_PARTICLES);
+
+        const trailX = new Float32Array(MAX_PARTICLES * TRAIL_LEN);
+        const trailY = new Float32Array(MAX_PARTICLES * TRAIL_LEN);
+        const trailHead = new Uint8Array(MAX_PARTICLES);
+
+        const nodeCx = new Float32Array(MAX_NODES);
+        const nodeCy = new Float32Array(MAX_NODES);
+        const nodeHalf = new Float32Array(MAX_NODES);
+        const nodeMass = new Float32Array(MAX_NODES);
+        const nodeComX = new Float32Array(MAX_NODES);
+        const nodeComY = new Float32Array(MAX_NODES);
+        const nodeParticle = new Int32Array(MAX_NODES);
+        const nodeLeaf = new Uint8Array(MAX_NODES);
+        const nodeChild = new Int32Array(MAX_NODES * 4);
+
+        nodeParticle.fill(-1);
+        nodeChild.fill(-1);
+
+        const forceStack = new Int32Array(MAX_NODES);
+
+        let nodeCount = 0;
+        let rootIndex = -1;
+
+        const mergeMap = new Map();
+        const flashes = [];
+
+        let particleCount = 0;
+
+        let width = window.innerWidth;
+        let height = window.innerHeight;
+        let dpr = Math.min(2, window.devicePixelRatio || 1);
+
+        const state = {
+          paused: false,
+          loading: false,
+          preset: 1,
+          presetName: "Spiral Galaxy",
+          simSpeed: 1,
+          gravity: 46,
+          softening: 14,
+          theta: 0.68,
+          showTrails: true,
+          showVectors: false,
+          showField: false,
+          mergeEnabled: true,
+          fps: 0,
+          fpsFrames: 0,
+          fpsTimer: 0,
+          worldTime: 0,
+          trailAccumulator: 0,
+          hudLastActivity: performance.now(),
+          hudHover: false,
+          zoom: 1,
+          targetZoom: 1,
+          minZoom: 0.08,
+          maxZoom: 6,
+          camX: 0,
+          camY: 0,
+          zoomFocus: null,
+          fieldLastUpdate: 0,
+          fieldNeedsUpdate: true,
+          showHelp: false,
+          rngSeed: Math.random() * 10000,
+        };
+
+        const interaction = {
+          pointers: new Map(),
+          mode: "none",
+          primaryId: -1,
+          startX: 0,
+          startY: 0,
+          lastX: 0,
+          lastY: 0,
+          startWorldX: 0,
+          startWorldY: 0,
+          startTime: 0,
+          pinch: {
+            active: false,
+            startDist: 0,
+            startZoom: 1,
+            worldX: 0,
+            worldY: 0,
+          },
+        };
+
+        const paletteCore = new Array(256);
+        const paletteGlow = new Array(256);
+        const paletteTrail = new Array(256);
+        const paletteDust = new Array(256);
+
+        const bgStars = [];
+        const nebulae = [];
+
+        const fieldCanvas = document.createElement("canvas");
+        fieldCanvas.width = 64;
+        fieldCanvas.height = 36;
+        const fieldCtx = fieldCanvas.getContext("2d");
+        const fieldImage = fieldCtx.createImageData(fieldCanvas.width, fieldCanvas.height);
+        const fieldData = fieldImage.data;
+
+        function rand(min, max) {
+          return min + Math.random() * (max - min);
+        }
+
+        function clamp(v, min, max) {
+          return Math.max(min, Math.min(max, v));
+        }
+
+        function nextFrame() {
+          return new Promise((resolve) => requestAnimationFrame(resolve));
+        }
+
+        let gaussSpare = null;
+        function gauss() {
+          if (gaussSpare != null) {
+            const value = gaussSpare;
+            gaussSpare = null;
+            return value;
+          }
+
+          let u = 0;
+          let v = 0;
+          while (u === 0) u = Math.random();
+          while (v === 0) v = Math.random();
+
+          const mag = Math.sqrt(-2 * Math.log(u));
+          const angle = TWO_PI * v;
+          gaussSpare = mag * Math.sin(angle);
+          return mag * Math.cos(angle);
+        }
+
+        function markActivity() {
+          state.hudLastActivity = performance.now();
+          hud.classList.remove("hidden");
+        }
+
+        function screenToWorld(sx, sy) {
+          return {
+            x: (sx - width * 0.5) / state.zoom + state.camX,
+            y: (sy - height * 0.5) / state.zoom + state.camY,
+          };
+        }
+
+        function worldToScreen(wx, wy) {
+          return {
+            x: (wx - state.camX) * state.zoom + width * 0.5,
+            y: (wy - state.camY) * state.zoom + height * 0.5,
+          };
+        }
+
+        function massToRadius(mass, type) {
+          if (type === TYPE_DUST) return 0.7 + Math.sqrt(mass) * 0.2;
+          if (type === TYPE_PLANET) return 1.1 + Math.sqrt(mass) * 0.35;
+          return 1.8 + Math.sqrt(mass) * 0.5;
+        }
+
+        function setLoading(loading, text = "Generating Galaxy...") {
+          state.loading = loading;
+          loadingTextEl.textContent = text;
+          loadingEl.classList.toggle("hidden", !loading);
+        }
+
+        function initPalette() {
+          const stops = [
+            { t: 0.0, c: [73, 86, 255] },
+            { t: 0.22, c: [133, 78, 255] },
+            { t: 0.45, c: [73, 220, 255] },
+            { t: 0.68, c: [98, 255, 181] },
+            { t: 0.85, c: [255, 200, 93] },
+            { t: 1.0, c: [255, 249, 224] },
+          ];
+
+          function sample(t) {
+            let left = stops[0];
+            let right = stops[stops.length - 1];
+
+            for (let i = 0; i < stops.length - 1; i += 1) {
+              if (t >= stops[i].t && t <= stops[i + 1].t) {
+                left = stops[i];
+                right = stops[i + 1];
+                break;
+              }
+            }
+
+            const local = (t - left.t) / (right.t - left.t || 1);
+            const r = left.c[0] + (right.c[0] - left.c[0]) * local;
+            const g = left.c[1] + (right.c[1] - left.c[1]) * local;
+            const b = left.c[2] + (right.c[2] - left.c[2]) * local;
+            return [r | 0, g | 0, b | 0];
+          }
+
+          for (let i = 0; i < 256; i += 1) {
+            const t = i / 255;
+            const [r, g, b] = sample(t);
+            paletteCore[i] = `rgba(${r},${g},${b},0.95)`;
+            paletteGlow[i] = `rgba(${r},${g},${b},0.22)`;
+            paletteTrail[i] = `rgba(${r},${g},${b},1)`;
+            paletteDust[i] = `rgba(${r},${g},${b},0.72)`;
+          }
+        }
+
+        function initBackgroundAssets() {
+          bgStars.length = 0;
+          nebulae.length = 0;
+
+          const starCount = Math.max(320, Math.floor((width * height) / 4200));
+          for (let i = 0; i < starCount; i += 1) {
+            bgStars.push({
+              x: Math.random(),
+              y: Math.random(),
+              size: Math.random() < 0.08 ? rand(1.4, 2.4) : rand(0.35, 1.1),
+              alpha: rand(0.15, 0.9),
+              twinkle: rand(0.5, 2.1),
+              phase: rand(0, TWO_PI),
+              hue: Math.random() < 0.5 ? 210 : 280,
+            });
+          }
+
+          const nebulaCount = 6;
+          for (let i = 0; i < nebulaCount; i += 1) {
+            nebulae.push({
+              x: rand(0.1, 0.9),
+              y: rand(0.1, 0.9),
+              radius: rand(200, 440),
+              hue: rand(220, 300),
+              alpha: rand(0.03, 0.08),
+              driftX: rand(-0.02, 0.02),
+              driftY: rand(-0.02, 0.02),
+            });
+          }
+        }
+
+        function resizeCanvas() {
+          width = window.innerWidth;
+          height = window.innerHeight;
+          dpr = Math.min(2, window.devicePixelRatio || 1);
+
+          canvas.width = Math.max(1, Math.floor(width * dpr));
+          canvas.height = Math.max(1, Math.floor(height * dpr));
+          canvas.style.width = `${width}px`;
+          canvas.style.height = `${height}px`;
+
+          initBackgroundAssets();
+          state.fieldNeedsUpdate = true;
+        }
+
+        function initTrailForParticle(index) {
+          const base = index * TRAIL_LEN;
+          for (let i = 0; i < TRAIL_LEN; i += 1) {
+            trailX[base + i] = px[index];
+            trailY[base + i] = py[index];
+          }
+          trailHead[index] = 0;
+        }
+
+        function copyParticle(from, to) {
+          px[to] = px[from];
+          py[to] = py[from];
+          pvx[to] = pvx[from];
+          pvy[to] = pvy[from];
+          pmass[to] = pmass[from];
+          pradius[to] = pradius[from];
+          ptype[to] = ptype[from];
+
+          const fromBase = from * TRAIL_LEN;
+          const toBase = to * TRAIL_LEN;
+          for (let i = 0; i < TRAIL_LEN; i += 1) {
+            trailX[toBase + i] = trailX[fromBase + i];
+            trailY[toBase + i] = trailY[fromBase + i];
+          }
+          trailHead[to] = trailHead[from];
+        }
+
+        function removeParticle(index) {
+          const last = particleCount - 1;
+          if (index < 0 || index >= particleCount) return;
+
+          if (index !== last) {
+            copyParticle(last, index);
+          }
+          particleCount -= 1;
+        }
+
+        function addParticle(x, y, vx, vy, mass, type) {
+          if (particleCount >= MAX_PARTICLES) return -1;
+
+          const i = particleCount;
+          particleCount += 1;
+
+          px[i] = x;
+          py[i] = y;
+          pvx[i] = vx;
+          pvy[i] = vy;
+          pmass[i] = mass;
+          ptype[i] = type;
+          pradius[i] = massToRadius(mass, type);
+
+          initTrailForParticle(i);
+          return i;
+        }
+
+        function addFlash(x, y, strength) {
+          flashes.push({ x, y, life: 1, strength });
+          if (flashes.length > 120) flashes.shift();
+        }
+
+        function clearParticles() {
+          particleCount = 0;
+          flashes.length = 0;
+          state.fieldNeedsUpdate = true;
+        }
+
+        function setPresetButtonsActive(preset) {
+          presetButtons.forEach((btn) => {
+            btn.classList.toggle("active", Number(btn.dataset.preset) === preset);
+          });
+        }
+
+        function focusCameraOnParticles() {
+          if (particleCount === 0) {
+            state.camX = 0;
+            state.camY = 0;
+            state.zoom = 1;
+            state.targetZoom = 1;
+            return;
+          }
+
+          let minX = Infinity;
+          let maxX = -Infinity;
+          let minY = Infinity;
+          let maxY = -Infinity;
+          let sumX = 0;
+          let sumY = 0;
+
+          for (let i = 0; i < particleCount; i += 1) {
+            const x = px[i];
+            const y = py[i];
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+            sumX += x;
+            sumY += y;
+          }
+
+          state.camX = sumX / particleCount;
+          state.camY = sumY / particleCount;
+
+          const spreadX = Math.max(250, maxX - minX + 240);
+          const spreadY = Math.max(250, maxY - minY + 240);
+          const zoomX = width / spreadX;
+          const zoomY = height / spreadY;
+          const fitZoom = clamp(Math.min(zoomX, zoomY), state.minZoom, state.maxZoom);
+
+          state.zoom = fitZoom;
+          state.targetZoom = fitZoom;
+        }
+
+        function spawnGalaxy(config) {
+          const {
+            cx,
+            cy,
+            arms,
+            count,
+            radius,
+            spin,
+            driftVx,
+            driftVy,
+            coreMass,
+            armNoise,
+          } = config;
+
+          const heavyCore = Math.max(6, Math.floor(count * 0.007));
+          for (let i = 0; i < heavyCore; i += 1) {
+            const x = cx + gauss() * 8;
+            const y = cy + gauss() * 8;
+            const mass = rand(38, 95);
+            addParticle(x, y, driftVx + gauss() * 0.5, driftVy + gauss() * 0.5, mass, TYPE_STAR);
+          }
+
+          for (let i = 0; i < count; i += 1) {
+            const arm = i % arms;
+            const radial = Math.pow(Math.random(), 0.58) * radius;
+            const angle =
+              (arm / arms) * TWO_PI +
+              spin * radial * 0.043 +
+              gauss() * armNoise;
+
+            const x = cx + Math.cos(angle) * radial + gauss() * 4;
+            const y = cy + Math.sin(angle) * radial + gauss() * 4;
+
+            const dist = Math.hypot(x - cx, y - cy) + 12;
+            const orbitSpeed = Math.sqrt((state.gravity * coreMass) / dist) * rand(0.66, 1.28);
+            const tangent = Math.atan2(y - cy, x - cx) + (spin > 0 ? Math.PI * 0.5 : -Math.PI * 0.5);
+
+            let vx = Math.cos(tangent) * orbitSpeed + driftVx + gauss() * 1.1;
+            let vy = Math.sin(tangent) * orbitSpeed + driftVy + gauss() * 1.1;
+
+            const pick = Math.random();
+            let type = TYPE_DUST;
+            let mass = rand(0.35, 1.25);
+
+            if (pick < 0.018) {
+              type = TYPE_STAR;
+              mass = rand(18, 58);
+              vx *= 0.92;
+              vy *= 0.92;
+            } else if (pick < 0.23) {
+              type = TYPE_PLANET;
+              mass = rand(1.8, 7.5);
+            }
+
+            addParticle(x, y, vx, vy, mass, type);
+          }
+        }
+
+        function generateSpiralPreset() {
+          clearParticles();
+
+          spawnGalaxy({
+            cx: 0,
+            cy: 0,
+            arms: 3,
+            count: 4200,
+            radius: 430,
+            spin: 1,
+            driftVx: 0,
+            driftVy: 0,
+            coreMass: 1500,
+            armNoise: 0.21,
+          });
+        }
+
+        function generateBinaryPreset() {
+          clearParticles();
+
+          spawnGalaxy({
+            cx: -260,
+            cy: 0,
+            arms: 2,
+            count: 2100,
+            radius: 250,
+            spin: 1,
+            driftVx: 0,
+            driftVy: 13,
+            coreMass: 950,
+            armNoise: 0.25,
+          });
+
+          spawnGalaxy({
+            cx: 260,
+            cy: 0,
+            arms: 2,
+            count: 2100,
+            radius: 250,
+            spin: -1,
+            driftVx: 0,
+            driftVy: -13,
+            coreMass: 950,
+            armNoise: 0.25,
+          });
+        }
+
+        function generateCollisionPreset() {
+          clearParticles();
+
+          spawnGalaxy({
+            cx: -400,
+            cy: -10,
+            arms: 3,
+            count: 2200,
+            radius: 280,
+            spin: 1,
+            driftVx: 25,
+            driftVy: 1.8,
+            coreMass: 1050,
+            armNoise: 0.2,
+          });
+
+          spawnGalaxy({
+            cx: 400,
+            cy: 10,
+            arms: 3,
+            count: 2200,
+            radius: 280,
+            spin: -1,
+            driftVx: -25,
+            driftVy: -1.8,
+            coreMass: 1050,
+            armNoise: 0.2,
+          });
+        }
+
+        function generateCloudPreset() {
+          clearParticles();
+
+          const total = 4200;
+          for (let i = 0; i < total; i += 1) {
+            const radius = Math.abs(gauss()) * 260 + rand(0, 160);
+            const angle = rand(0, TWO_PI);
+            const x = Math.cos(angle) * radius + gauss() * 30;
+            const y = Math.sin(angle) * radius + gauss() * 30;
+
+            const baseSpeed = rand(0, 20);
+            const direction = rand(0, TWO_PI);
+            const vx = Math.cos(direction) * baseSpeed;
+            const vy = Math.sin(direction) * baseSpeed;
+
+            const pick = Math.random();
+            let type = TYPE_DUST;
+            let mass = rand(0.25, 1.2);
+            if (pick < 0.03) {
+              type = TYPE_STAR;
+              mass = rand(20, 70);
+            } else if (pick < 0.29) {
+              type = TYPE_PLANET;
+              mass = rand(1.4, 7.6);
+            }
+
+            addParticle(x, y, vx, vy, mass, type);
+          }
+        }
+
+        async function applyPreset(preset) {
+          state.preset = preset;
+          setPresetButtonsActive(preset);
+          setLoading(true, "Generating Galaxy...");
+          await nextFrame();
+
+          if (preset === 1) {
+            state.presetName = "Preset: Spiral Galaxy";
+            generateSpiralPreset();
+          } else if (preset === 2) {
+            state.presetName = "Preset: Binary System";
+            generateBinaryPreset();
+          } else if (preset === 3) {
+            state.presetName = "Preset: Collision Course";
+            generateCollisionPreset();
+          } else {
+            state.presetName = "Preset: Random Cloud";
+            generateCloudPreset();
+          }
+
+          await nextFrame();
+
+          focusCameraOnParticles();
+          state.fieldNeedsUpdate = true;
+          presetNameEl.textContent = state.presetName;
+          setLoading(false);
+        }
+
+        function createNode(cx, cy, half) {
+          if (nodeCount >= MAX_NODES) return -1;
+          const i = nodeCount;
+          nodeCount += 1;
+
+          nodeCx[i] = cx;
+          nodeCy[i] = cy;
+          nodeHalf[i] = half;
+          nodeMass[i] = 0;
+          nodeComX[i] = 0;
+          nodeComY[i] = 0;
+          nodeParticle[i] = -1;
+          nodeLeaf[i] = 1;
+
+          const base = i * 4;
+          nodeChild[base] = -1;
+          nodeChild[base + 1] = -1;
+          nodeChild[base + 2] = -1;
+          nodeChild[base + 3] = -1;
+
+          return i;
+        }
+
+        function quadForParticle(nodeIdx, pIdx) {
+          const right = px[pIdx] > nodeCx[nodeIdx] ? 1 : 0;
+          const bottom = py[pIdx] > nodeCy[nodeIdx] ? 1 : 0;
+          return right + bottom * 2;
+        }
+
+        function subdivideNode(nodeIdx) {
+          if (!nodeLeaf[nodeIdx]) return true;
+
+          const half = nodeHalf[nodeIdx] * 0.5;
+          if (half < 0.15) return false;
+
+          const cx = nodeCx[nodeIdx];
+          const cy = nodeCy[nodeIdx];
+
+          const c0 = createNode(cx - half, cy - half, half);
+          const c1 = createNode(cx + half, cy - half, half);
+          const c2 = createNode(cx - half, cy + half, half);
+          const c3 = createNode(cx + half, cy + half, half);
+
+          if (c0 < 0 || c1 < 0 || c2 < 0 || c3 < 0) return false;
+
+          const base = nodeIdx * 4;
+          nodeChild[base] = c0;
+          nodeChild[base + 1] = c1;
+          nodeChild[base + 2] = c2;
+          nodeChild[base + 3] = c3;
+          nodeLeaf[nodeIdx] = 0;
+
+          return true;
+        }
+
+        function insertParticle(nodeIdx, pIdx, depth = 0) {
+          if (nodeIdx < 0) return;
+
+          const mass = pmass[pIdx];
+          const oldMass = nodeMass[nodeIdx];
+          const newMass = oldMass + mass;
+
+          nodeComX[nodeIdx] = (nodeComX[nodeIdx] * oldMass + px[pIdx] * mass) / newMass;
+          nodeComY[nodeIdx] = (nodeComY[nodeIdx] * oldMass + py[pIdx] * mass) / newMass;
+          nodeMass[nodeIdx] = newMass;
+
+          if (nodeLeaf[nodeIdx]) {
+            const existing = nodeParticle[nodeIdx];
+            if (existing === -1) {
+              nodeParticle[nodeIdx] = pIdx;
+              return;
+            }
+
+            if (existing === pIdx) return;
+
+            if (depth > 42 && Math.abs(px[existing] - px[pIdx]) < 0.001 && Math.abs(py[existing] - py[pIdx]) < 0.001) {
+              px[pIdx] += rand(-0.01, 0.01);
+              py[pIdx] += rand(-0.01, 0.01);
+            }
+
+            const ok = subdivideNode(nodeIdx);
+            if (!ok) return;
+
+            nodeParticle[nodeIdx] = -1;
+            const base = nodeIdx * 4;
+            const q0 = quadForParticle(nodeIdx, existing);
+            insertParticle(nodeChild[base + q0], existing, depth + 1);
+
+            const q1 = quadForParticle(nodeIdx, pIdx);
+            insertParticle(nodeChild[base + q1], pIdx, depth + 1);
+            return;
+          }
+
+          const base = nodeIdx * 4;
+          const q = quadForParticle(nodeIdx, pIdx);
+          const child = nodeChild[base + q];
+          if (child >= 0) insertParticle(child, pIdx, depth + 1);
+        }
+
+        function buildTree() {
+          if (particleCount <= 0) {
+            rootIndex = -1;
+            return;
+          }
+
+          let minX = Infinity;
+          let minY = Infinity;
+          let maxX = -Infinity;
+          let maxY = -Infinity;
+
+          for (let i = 0; i < particleCount; i += 1) {
+            const x = px[i];
+            const y = py[i];
+            if (x < minX) minX = x;
+            if (x > maxX) maxX = x;
+            if (y < minY) minY = y;
+            if (y > maxY) maxY = y;
+          }
+
+          const spanX = maxX - minX;
+          const spanY = maxY - minY;
+          const half = Math.max(180, Math.max(spanX, spanY) * 0.55 + 24);
+          const cx = (minX + maxX) * 0.5;
+          const cy = (minY + maxY) * 0.5;
+
+          nodeCount = 0;
+          rootIndex = createNode(cx, cy, half);
+
+          for (let i = 0; i < particleCount; i += 1) {
+            insertParticle(rootIndex, i);
+          }
+        }
+
+        function computeAccelAt(x, y, selfIndex = -1) {
+          if (rootIndex < 0) return { ax: 0, ay: 0 };
+
+          const G = state.gravity;
+          const soft2 = state.softening * state.softening;
+          const theta2 = state.theta * state.theta;
+
+          let ax = 0;
+          let ay = 0;
+
+          let top = 0;
+          forceStack[top] = rootIndex;
+
+          while (top >= 0) {
+            const node = forceStack[top];
+            top -= 1;
+
+            const mass = nodeMass[node];
+            if (mass <= 0) continue;
+
+            if (nodeLeaf[node]) {
+              const other = nodeParticle[node];
+              if (other < 0 || other === selfIndex) continue;
+
+              const dx = px[other] - x;
+              const dy = py[other] - y;
+              const d2 = dx * dx + dy * dy + soft2;
+              const inv = 1 / Math.sqrt(d2);
+              const inv3 = inv * inv * inv;
+              const f = G * pmass[other] * inv3;
+
+              ax += dx * f;
+              ay += dy * f;
+              continue;
+            }
+
+            const dx = nodeComX[node] - x;
+            const dy = nodeComY[node] - y;
+            const d2 = dx * dx + dy * dy + soft2;
+
+            const size = nodeHalf[node] * 2;
+            const size2 = size * size;
+
+            const containsSelf =
+              selfIndex >= 0 &&
+              Math.abs(px[selfIndex] - nodeCx[node]) <= nodeHalf[node] &&
+              Math.abs(py[selfIndex] - nodeCy[node]) <= nodeHalf[node];
+
+            if (!containsSelf && size2 < theta2 * d2) {
+              const inv = 1 / Math.sqrt(d2);
+              const inv3 = inv * inv * inv;
+              const f = G * mass * inv3;
+              ax += dx * f;
+              ay += dy * f;
+            } else {
+              const base = node * 4;
+              const c0 = nodeChild[base];
+              const c1 = nodeChild[base + 1];
+              const c2 = nodeChild[base + 2];
+              const c3 = nodeChild[base + 3];
+
+              if (c0 >= 0) forceStack[++top] = c0;
+              if (c1 >= 0) forceStack[++top] = c1;
+              if (c2 >= 0) forceStack[++top] = c2;
+              if (c3 >= 0) forceStack[++top] = c3;
+            }
+          }
+
+          return { ax, ay };
+        }
+
+        function updateTrails(dt) {
+          state.trailAccumulator += dt;
+          if (state.trailAccumulator < 0.03) return;
+
+          state.trailAccumulator = 0;
+
+          for (let i = 0; i < particleCount; i += 1) {
+            let head = trailHead[i] + 1;
+            if (head >= TRAIL_LEN) head = 0;
+            trailHead[i] = head;
+
+            const idx = i * TRAIL_LEN + head;
+            trailX[idx] = px[i];
+            trailY[idx] = py[i];
+          }
+        }
+
+        function mergeParticles(target, source) {
+          if (target === source || target < 0 || source < 0 || target >= particleCount || source >= particleCount) {
+            return;
+          }
+
+          const m1 = pmass[target];
+          const m2 = pmass[source];
+          const sum = m1 + m2;
+
+          const x = (px[target] * m1 + px[source] * m2) / sum;
+          const y = (py[target] * m1 + py[source] * m2) / sum;
+          const vx = (pvx[target] * m1 + pvx[source] * m2) / sum;
+          const vy = (pvy[target] * m1 + pvy[source] * m2) / sum;
+
+          px[target] = x;
+          py[target] = y;
+          pvx[target] = vx;
+          pvy[target] = vy;
+          pmass[target] = sum;
+
+          ptype[target] = sum > 18 ? TYPE_STAR : sum > 4.5 ? TYPE_PLANET : TYPE_DUST;
+          pradius[target] = massToRadius(sum, ptype[target]);
+
+          addFlash(x, y, Math.sqrt(sum) * 0.8 + 4);
+          removeParticle(source);
+        }
+
+        function handleMerges() {
+          if (!state.mergeEnabled || particleCount <= 1) return;
+
+          mergeMap.clear();
+          const cellSize = 8;
+
+          let i = 0;
+          while (i < particleCount) {
+            const cx = Math.floor(px[i] / cellSize);
+            const cy = Math.floor(py[i] / cellSize);
+
+            let merged = false;
+
+            for (let oy = -1; oy <= 1 && !merged; oy += 1) {
+              for (let ox = -1; ox <= 1 && !merged; ox += 1) {
+                const key = `${cx + ox},${cy + oy}`;
+                const list = mergeMap.get(key);
+                if (!list) continue;
+
+                for (let k = 0; k < list.length; k += 1) {
+                  const j = list[k];
+                  if (j >= particleCount) continue;
+
+                  const dx = px[i] - px[j];
+                  const dy = py[i] - py[j];
+                  const r = (pradius[i] + pradius[j]) * 0.55;
+                  if (dx * dx + dy * dy > r * r) continue;
+
+                  mergeParticles(j, i);
+                  merged = true;
+                  break;
+                }
+              }
+            }
+
+            if (merged) {
+              continue;
+            }
+
+            const ownKey = `${cx},${cy}`;
+            let ownList = mergeMap.get(ownKey);
+            if (!ownList) {
+              ownList = [];
+              mergeMap.set(ownKey, ownList);
+            }
+            ownList.push(i);
+            i += 1;
+          }
+
+          if (particleCount > MAX_PARTICLES - 10) {
+            state.fieldNeedsUpdate = true;
+          }
+        }
+
+        function physicsStep(dt) {
+          if (particleCount <= 0) return;
+
+          buildTree();
+
+          const drag = 1 - Math.min(0.03, dt * 0.05);
+          const maxSpeed = 240;
+
+          for (let i = 0; i < particleCount; i += 1) {
+            const { ax, ay } = computeAccelAt(px[i], py[i], i);
+
+            let vx = pvx[i] + ax * dt;
+            let vy = pvy[i] + ay * dt;
+
+            vx *= drag;
+            vy *= drag;
+
+            const speed = Math.hypot(vx, vy);
+            if (speed > maxSpeed) {
+              const scale = maxSpeed / speed;
+              vx *= scale;
+              vy *= scale;
+            }
+
+            pvx[i] = vx;
+            pvy[i] = vy;
+
+            px[i] += vx * dt;
+            py[i] += vy * dt;
+          }
+
+          handleMerges();
+          updateTrails(dt);
+
+          for (let i = flashes.length - 1; i >= 0; i -= 1) {
+            flashes[i].life -= dt * 2.6;
+            if (flashes[i].life <= 0) flashes.splice(i, 1);
+          }
+
+          state.fieldNeedsUpdate = true;
+        }
+
+        function colorIndexForParticle(i) {
+          const speed = Math.hypot(pvx[i], pvy[i]);
+          const massFactor = Math.min(1, Math.sqrt(pmass[i]) / 12);
+          const speedFactor = Math.min(1, speed * 0.02);
+          const t = clamp(speedFactor * 0.68 + massFactor * 0.42, 0, 1);
+          return (t * 255) | 0;
+        }
+
+        function drawBackground() {
+          const grad = ctx.createLinearGradient(0, 0, 0, height);
+          grad.addColorStop(0, "#070a13");
+          grad.addColorStop(1, "#03040a");
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, width, height);
+
+          const t = state.worldTime;
+          for (let i = 0; i < nebulae.length; i += 1) {
+            const n = nebulae[i];
+            const x = (n.x + Math.sin(t * 0.05 + i * 1.1) * n.driftX) * width;
+            const y = (n.y + Math.cos(t * 0.05 + i * 0.9) * n.driftY) * height;
+            const r = n.radius;
+
+            const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+            g.addColorStop(0, `hsla(${n.hue}, 78%, 62%, ${n.alpha})`);
+            g.addColorStop(1, "rgba(0,0,0,0)");
+            ctx.fillStyle = g;
+            ctx.fillRect(x - r, y - r, r * 2, r * 2);
+          }
+
+          for (let i = 0; i < bgStars.length; i += 1) {
+            const star = bgStars[i];
+            const tw = 0.55 + 0.45 * Math.sin(t * star.twinkle + star.phase);
+            const a = star.alpha * tw;
+            ctx.fillStyle = `hsla(${star.hue}, 90%, 92%, ${a})`;
+            ctx.fillRect(star.x * width, star.y * height, star.size, star.size);
+          }
+        }
+
+        function updateForceFieldTexture(now) {
+          if (!state.showField || rootIndex < 0) return;
+          if (!state.fieldNeedsUpdate && now - state.fieldLastUpdate < 180) return;
+
+          state.fieldLastUpdate = now;
+          state.fieldNeedsUpdate = false;
+
+          const fw = fieldCanvas.width;
+          const fh = fieldCanvas.height;
+
+          let p = 0;
+          for (let y = 0; y < fh; y += 1) {
+            for (let x = 0; x < fw; x += 1) {
+              const sx = ((x + 0.5) / fw) * width;
+              const sy = ((y + 0.5) / fh) * height;
+
+              const world = screenToWorld(sx, sy);
+              const { ax, ay } = computeAccelAt(world.x, world.y, -1);
+              const mag = Math.hypot(ax, ay);
+
+              const n = clamp(Math.log1p(mag * 14) / 4.8, 0, 1);
+              const r = Math.round(40 + n * 210);
+              const g = Math.round(20 + n * n * 145);
+              const b = Math.round(110 + (1 - n) * 120);
+              const a = Math.round(n * 130);
+
+              fieldData[p] = r;
+              fieldData[p + 1] = g;
+              fieldData[p + 2] = b;
+              fieldData[p + 3] = a;
+              p += 4;
+            }
+          }
+
+          fieldCtx.putImageData(fieldImage, 0, 0);
+        }
+
+        function drawForceField(now) {
+          if (!state.showField) return;
+          updateForceFieldTexture(now);
+
+          ctx.save();
+          ctx.globalCompositeOperation = "screen";
+          ctx.globalAlpha = 0.2;
+          ctx.filter = "blur(8px)";
+          ctx.drawImage(fieldCanvas, 0, 0, width, height);
+          ctx.filter = "none";
+          ctx.restore();
+        }
+
+        function drawTrails() {
+          if (!state.showTrails || particleCount <= 0) return;
+
+          ctx.save();
+          ctx.globalCompositeOperation = "lighter";
+          ctx.lineCap = "round";
+          ctx.lineJoin = "round";
+
+          const viewMargin = 36;
+
+          for (let i = 0; i < particleCount; i += 1) {
+            const type = ptype[i];
+            if (type === TYPE_DUST && i % 4 !== 0) continue;
+
+            const idx = colorIndexForParticle(i);
+            const color = paletteTrail[idx];
+
+            const base = i * TRAIL_LEN;
+            const head = trailHead[i];
+            const lineWidth = Math.max(0.35, pradius[i] * state.zoom * (type === TYPE_STAR ? 0.19 : 0.14));
+            const alpha = type === TYPE_STAR ? 0.2 : type === TYPE_PLANET ? 0.11 : 0.05;
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = lineWidth;
+            ctx.globalAlpha = alpha;
+
+            let started = false;
+            ctx.beginPath();
+            for (let s = TRAIL_LEN - 1; s >= 0; s -= 1) {
+              const tIndex = base + ((head - s + TRAIL_LEN) % TRAIL_LEN);
+              const wx = trailX[tIndex];
+              const wy = trailY[tIndex];
+
+              const sx = (wx - state.camX) * state.zoom + width * 0.5;
+              const sy = (wy - state.camY) * state.zoom + height * 0.5;
+
+              if (
+                sx < -viewMargin ||
+                sx > width + viewMargin ||
+                sy < -viewMargin ||
+                sy > height + viewMargin
+              ) {
+                continue;
+              }
+
+              if (!started) {
+                ctx.moveTo(sx, sy);
+                started = true;
+              } else {
+                ctx.lineTo(sx, sy);
+              }
+            }
+            if (started) ctx.stroke();
+
+            if (type !== TYPE_DUST) {
+              ctx.globalAlpha = alpha * 1.8;
+              ctx.lineWidth = lineWidth * 1.5;
+              ctx.beginPath();
+              let startRecent = false;
+              for (let s = Math.floor(TRAIL_LEN * 0.45); s >= 0; s -= 1) {
+                const tIndex = base + ((head - s + TRAIL_LEN) % TRAIL_LEN);
+                const wx = trailX[tIndex];
+                const wy = trailY[tIndex];
+
+                const sx = (wx - state.camX) * state.zoom + width * 0.5;
+                const sy = (wy - state.camY) * state.zoom + height * 0.5;
+
+                if (!startRecent) {
+                  ctx.moveTo(sx, sy);
+                  startRecent = true;
+                } else {
+                  ctx.lineTo(sx, sy);
+                }
+              }
+              if (startRecent) ctx.stroke();
+            }
+          }
+
+          ctx.restore();
+        }
+
+        function drawParticles() {
+          ctx.save();
+          ctx.globalCompositeOperation = "lighter";
+
+          const cull = 80;
+
+          for (let i = 0; i < particleCount; i += 1) {
+            const sx = (px[i] - state.camX) * state.zoom + width * 0.5;
+            const sy = (py[i] - state.camY) * state.zoom + height * 0.5;
+
+            if (sx < -cull || sx > width + cull || sy < -cull || sy > height + cull) continue;
+
+            const idx = colorIndexForParticle(i);
+            const type = ptype[i];
+            const rScreen = Math.max(0.4, pradius[i] * state.zoom);
+
+            if (type === TYPE_DUST) {
+              ctx.fillStyle = paletteDust[idx];
+              const size = Math.max(1, rScreen * 0.9);
+              ctx.fillRect(sx - size * 0.5, sy - size * 0.5, size, size);
+            } else {
+              const glowR = rScreen * (type === TYPE_STAR ? 3.3 : 2.2);
+              ctx.fillStyle = paletteGlow[idx];
+              ctx.beginPath();
+              ctx.arc(sx, sy, glowR, 0, TWO_PI);
+              ctx.fill();
+
+              ctx.fillStyle = paletteCore[idx];
+              ctx.beginPath();
+              ctx.arc(sx, sy, Math.max(0.8, rScreen), 0, TWO_PI);
+              ctx.fill();
+
+              if (type === TYPE_STAR && pmass[i] > 35) {
+                const lens = glowR * 1.3;
+                const grad = ctx.createRadialGradient(sx, sy, 0, sx, sy, lens);
+                grad.addColorStop(0, "rgba(255,255,255,0.14)");
+                grad.addColorStop(1, "rgba(255,255,255,0)");
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(sx, sy, lens, 0, TWO_PI);
+                ctx.fill();
+              }
+            }
+          }
+
+          for (let i = flashes.length - 1; i >= 0; i -= 1) {
+            const fl = flashes[i];
+            const sx = (fl.x - state.camX) * state.zoom + width * 0.5;
+            const sy = (fl.y - state.camY) * state.zoom + height * 0.5;
+            const life = fl.life;
+            const radius = (1 - life) * fl.strength * state.zoom + 6;
+
+            ctx.globalAlpha = life * 0.42;
+            ctx.strokeStyle = "rgba(255,250,220,0.95)";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(sx, sy, radius, 0, TWO_PI);
+            ctx.stroke();
+
+            ctx.globalAlpha = life * 0.26;
+            ctx.fillStyle = "rgba(255,245,210,0.95)";
+            ctx.beginPath();
+            ctx.arc(sx, sy, radius * 0.62, 0, TWO_PI);
+            ctx.fill();
+          }
+
+          ctx.restore();
+        }
+
+        function drawVelocityVectors() {
+          if (!state.showVectors) return;
+
+          ctx.save();
+          ctx.globalCompositeOperation = "screen";
+          ctx.strokeStyle = "rgba(170, 220, 255, 0.36)";
+          ctx.lineWidth = 1;
+
+          for (let i = 0; i < particleCount; i += 1) {
+            if (ptype[i] === TYPE_DUST && i % 8 !== 0) continue;
+
+            const sx = (px[i] - state.camX) * state.zoom + width * 0.5;
+            const sy = (py[i] - state.camY) * state.zoom + height * 0.5;
+            if (sx < -12 || sx > width + 12 || sy < -12 || sy > height + 12) continue;
+
+            const ex = sx + pvx[i] * state.zoom * 0.09;
+            const ey = sy + pvy[i] * state.zoom * 0.09;
+
+            ctx.beginPath();
+            ctx.moveTo(sx, sy);
+            ctx.lineTo(ex, ey);
+            ctx.stroke();
+          }
+
+          ctx.restore();
+        }
+
+        function drawInteractionGuide() {
+          if (interaction.mode !== "place") return;
+
+          const x0 = interaction.startX;
+          const y0 = interaction.startY;
+          const x1 = interaction.lastX;
+          const y1 = interaction.lastY;
+
+          const dist = Math.hypot(x1 - x0, y1 - y0);
+          const massHint = clamp(30 + dist * 0.6, 24, 220);
+          const r = Math.max(6, Math.sqrt(massHint) * 1.4);
+
+          ctx.save();
+          ctx.globalCompositeOperation = "screen";
+          ctx.strokeStyle = "rgba(190,230,255,0.75)";
+          ctx.fillStyle = "rgba(140,205,255,0.16)";
+          ctx.lineWidth = 1.5;
+
+          ctx.beginPath();
+          ctx.arc(x1, y1, r, 0, TWO_PI);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.beginPath();
+          ctx.moveTo(x0, y0);
+          ctx.lineTo(x1, y1);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        function render(now) {
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          drawBackground();
+          drawForceField(now);
+          drawTrails();
+          drawParticles();
+          drawVelocityVectors();
+          drawInteractionGuide();
+        }
+
+        function updateHud(now) {
+          particleCountEl.textContent = `Particles: ${particleCount}`;
+          pausedStateEl.textContent = state.paused ? "Paused" : "";
+
+          state.fpsFrames += 1;
+          state.fpsTimer += 1;
+
+          if (state.fpsTimer >= 16) {
+            fpsEl.textContent = `FPS: ${state.fps.toFixed(1)}`;
+            state.fpsTimer = 0;
+          }
+
+          const inactive = now - state.hudLastActivity > 3200;
+          if (inactive && !state.hudHover && !state.showHelp) {
+            hud.classList.add("hidden");
+          }
+        }
+
+        function applyZoomEasing(dt) {
+          if (Math.abs(state.targetZoom - state.zoom) < 0.0001) {
+            state.zoom = state.targetZoom;
+          } else {
+            state.zoom += (state.targetZoom - state.zoom) * (1 - Math.exp(-dt * 12));
+          }
+
+          if (state.zoomFocus) {
+            const zf = state.zoomFocus;
+            state.camX = zf.wx - (zf.sx - width * 0.5) / state.zoom;
+            state.camY = zf.wy - (zf.sy - height * 0.5) / state.zoom;
+            zf.life -= dt;
+            if (zf.life <= 0) state.zoomFocus = null;
+          }
+        }
+
+        function flingCluster(centerX, centerY, impulseX, impulseY, radius) {
+          const r2 = radius * radius;
+
+          for (let i = 0; i < particleCount; i += 1) {
+            const dx = px[i] - centerX;
+            const dy = py[i] - centerY;
+            const d2 = dx * dx + dy * dy;
+            if (d2 > r2) continue;
+
+            const d = Math.sqrt(d2) + 0.0001;
+            const fall = Math.pow(1 - d / radius, 2);
+
+            pvx[i] += impulseX * fall;
+            pvy[i] += impulseY * fall;
+
+            const swirl = (Math.random() - 0.5) * 4;
+            pvx[i] += (-dy / d) * swirl * fall;
+            pvy[i] += (dx / d) * swirl * fall;
+          }
+        }
+
+        function placeAttractor(releaseX, releaseY) {
+          const startWorld = screenToWorld(interaction.startX, interaction.startY);
+          const endWorld = screenToWorld(releaseX, releaseY);
+
+          const dragWX = endWorld.x - startWorld.x;
+          const dragWY = endWorld.y - startWorld.y;
+          const dragDist = Math.hypot(releaseX - interaction.startX, releaseY - interaction.startY);
+          const holdTime = clamp((performance.now() - interaction.startTime) * 0.001, 0, 3);
+
+          const mass = clamp(24 + holdTime * 34 + dragDist * 0.22, 18, 220);
+          const initVx = clamp(dragWX * 1.2, -80, 80);
+          const initVy = clamp(dragWY * 1.2, -80, 80);
+
+          const type = mass > 32 ? TYPE_STAR : TYPE_PLANET;
+          addParticle(endWorld.x, endWorld.y, initVx, initVy, mass, type);
+          addFlash(endWorld.x, endWorld.y, Math.sqrt(mass) * 1.4 + 6);
+
+          const impulseX = clamp(dragWX * 2.0, -130, 130);
+          const impulseY = clamp(dragWY * 2.0, -130, 130);
+          const radius = clamp(75 + dragDist * 0.6 / state.zoom, 55, 220);
+
+          flingCluster(endWorld.x, endWorld.y, impulseX, impulseY, radius);
+          state.fieldNeedsUpdate = true;
+        }
+
+        function beginPinch() {
+          if (interaction.pointers.size < 2) return;
+
+          const values = Array.from(interaction.pointers.values());
+          const p0 = values[0];
+          const p1 = values[1];
+
+          const mx = (p0.x + p1.x) * 0.5;
+          const my = (p0.y + p1.y) * 0.5;
+          const dist = Math.hypot(p1.x - p0.x, p1.y - p0.y);
+
+          const world = screenToWorld(mx, my);
+
+          interaction.pinch.active = true;
+          interaction.pinch.startDist = Math.max(0.0001, dist);
+          interaction.pinch.startZoom = state.targetZoom;
+          interaction.pinch.worldX = world.x;
+          interaction.pinch.worldY = world.y;
+
+          interaction.mode = "pinch";
+          interaction.primaryId = -1;
+        }
+
+        function updatePinch() {
+          if (!interaction.pinch.active || interaction.pointers.size < 2) return;
+
+          const values = Array.from(interaction.pointers.values());
+          const p0 = values[0];
+          const p1 = values[1];
+
+          const mx = (p0.x + p1.x) * 0.5;
+          const my = (p0.y + p1.y) * 0.5;
+          const dist = Math.max(0.0001, Math.hypot(p1.x - p0.x, p1.y - p0.y));
+
+          const ratio = dist / interaction.pinch.startDist;
+          const z = clamp(interaction.pinch.startZoom * ratio, state.minZoom, state.maxZoom);
+
+          state.zoom = z;
+          state.targetZoom = z;
+          state.camX = interaction.pinch.worldX - (mx - width * 0.5) / z;
+          state.camY = interaction.pinch.worldY - (my - height * 0.5) / z;
+
+          state.fieldNeedsUpdate = true;
+        }
+
+        function pointerDown(event) {
+          if (state.loading) return;
+
+          markActivity();
+          interaction.pointers.set(event.pointerId, {
+            x: event.clientX,
+            y: event.clientY,
+            type: event.pointerType,
+            button: event.button,
+          });
+
+          if (event.pointerType === "touch") {
+            event.preventDefault();
+            if (interaction.pointers.size >= 2) {
+              beginPinch();
+              return;
+            }
+          }
+
+          if (event.button === 2) {
+            interaction.mode = "pan";
+            interaction.primaryId = event.pointerId;
+            interaction.lastX = event.clientX;
+            interaction.lastY = event.clientY;
+            return;
+          }
+
+          if (interaction.mode === "none") {
+            interaction.mode = "place";
+            interaction.primaryId = event.pointerId;
+            interaction.startX = event.clientX;
+            interaction.startY = event.clientY;
+            interaction.lastX = event.clientX;
+            interaction.lastY = event.clientY;
+            const start = screenToWorld(event.clientX, event.clientY);
+            interaction.startWorldX = start.x;
+            interaction.startWorldY = start.y;
+            interaction.startTime = performance.now();
+          }
+
+          if (canvas.setPointerCapture) {
+            canvas.setPointerCapture(event.pointerId);
+          }
+        }
+
+        function pointerMove(event) {
+          const pointer = interaction.pointers.get(event.pointerId);
+          if (pointer) {
+            pointer.x = event.clientX;
+            pointer.y = event.clientY;
+          }
+
+          if (event.pointerType === "touch") {
+            event.preventDefault();
+          }
+
+          if (interaction.pinch.active && interaction.pointers.size >= 2) {
+            updatePinch();
+            return;
+          }
+
+          if (interaction.mode === "pan" && interaction.primaryId === event.pointerId) {
+            const dx = event.clientX - interaction.lastX;
+            const dy = event.clientY - interaction.lastY;
+            interaction.lastX = event.clientX;
+            interaction.lastY = event.clientY;
+
+            state.camX -= dx / state.zoom;
+            state.camY -= dy / state.zoom;
+            state.fieldNeedsUpdate = true;
+            return;
+          }
+
+          if (interaction.mode === "place" && interaction.primaryId === event.pointerId) {
+            interaction.lastX = event.clientX;
+            interaction.lastY = event.clientY;
+          }
+        }
+
+        function endPointer(event) {
+          interaction.pointers.delete(event.pointerId);
+
+          if (interaction.pinch.active && interaction.pointers.size < 2) {
+            interaction.pinch.active = false;
+            if (interaction.mode === "pinch") {
+              interaction.mode = "none";
+              interaction.primaryId = -1;
+            }
+          }
+
+          if (interaction.primaryId !== event.pointerId) {
+            return;
+          }
+
+          if (interaction.mode === "place") {
+            placeAttractor(event.clientX, event.clientY);
+          }
+
+          interaction.mode = "none";
+          interaction.primaryId = -1;
+        }
+
+        function zoomAtClient(clientX, clientY, factor) {
+          const before = screenToWorld(clientX, clientY);
+          state.targetZoom = clamp(state.targetZoom * factor, state.minZoom, state.maxZoom);
+          state.zoomFocus = {
+            sx: clientX,
+            sy: clientY,
+            wx: before.x,
+            wy: before.y,
+            life: 0.35,
+          };
+          state.fieldNeedsUpdate = true;
+        }
+
+        function takeScreenshot() {
+          const link = document.createElement("a");
+          link.href = canvas.toDataURL("image/png");
+          link.download = `particle-galaxy-${Date.now()}.png`;
+          link.click();
+        }
+
+        function updateToggleButtons() {
+          trailToggle.textContent = `Trails: ${state.showTrails ? "On" : "Off"}`;
+          trailToggle.classList.toggle("active", state.showTrails);
+
+          mergeToggle.textContent = `Merge: ${state.mergeEnabled ? "On" : "Off"}`;
+          mergeToggle.classList.toggle("active", state.mergeEnabled);
+
+          fieldToggle.textContent = `Field: ${state.showField ? "On" : "Off"}`;
+          fieldToggle.classList.toggle("active", state.showField);
+
+          vectorToggle.textContent = `Vectors: ${state.showVectors ? "On" : "Off"}`;
+          vectorToggle.classList.toggle("active", state.showVectors);
+        }
+
+        function bindUI() {
+          speedValueEl.textContent = `${state.simSpeed.toFixed(2)}x`;
+          gravityValueEl.textContent = String(state.gravity.toFixed(0));
+
+          speedSlider.addEventListener("input", () => {
+            state.simSpeed = parseFloat(speedSlider.value);
+            speedValueEl.textContent = `${state.simSpeed.toFixed(2)}x`;
+            markActivity();
+          });
+
+          gravitySlider.addEventListener("input", () => {
+            state.gravity = parseFloat(gravitySlider.value);
+            gravityValueEl.textContent = String(state.gravity.toFixed(0));
+            state.fieldNeedsUpdate = true;
+            markActivity();
+          });
+
+          presetButtons.forEach((btn) => {
+            btn.addEventListener("click", () => {
+              const preset = Number(btn.dataset.preset);
+              applyPreset(preset);
+              markActivity();
+            });
+          });
+
+          trailToggle.addEventListener("click", () => {
+            state.showTrails = !state.showTrails;
+            updateToggleButtons();
+            markActivity();
+          });
+
+          mergeToggle.addEventListener("click", () => {
+            state.mergeEnabled = !state.mergeEnabled;
+            updateToggleButtons();
+            markActivity();
+          });
+
+          fieldToggle.addEventListener("click", () => {
+            state.showField = !state.showField;
+            state.fieldNeedsUpdate = true;
+            updateToggleButtons();
+            markActivity();
+          });
+
+          vectorToggle.addEventListener("click", () => {
+            state.showVectors = !state.showVectors;
+            updateToggleButtons();
+            markActivity();
+          });
+
+          screenshotBtn.addEventListener("click", () => {
+            takeScreenshot();
+            markActivity();
+          });
+
+          resetBtn.addEventListener("click", () => {
+            applyPreset(state.preset);
+            markActivity();
+          });
+
+          dismissHelpBtn.addEventListener("click", () => {
+            shortcutsEl.classList.add("hidden");
+            state.showHelp = false;
+            try {
+              localStorage.setItem("particle_galaxy_help_seen", "1");
+            } catch (error) {
+              // Ignore storage errors.
+            }
+            markActivity();
+          });
+
+          hud.addEventListener("pointerenter", () => {
+            state.hudHover = true;
+          });
+
+          hud.addEventListener("pointerleave", () => {
+            state.hudHover = false;
+          });
+
+          canvas.addEventListener("pointerdown", pointerDown, { passive: false });
+          canvas.addEventListener("pointermove", pointerMove, { passive: false });
+          canvas.addEventListener("pointerup", endPointer);
+          canvas.addEventListener("pointercancel", endPointer);
+
+          canvas.addEventListener(
+            "wheel",
+            (event) => {
+              event.preventDefault();
+              markActivity();
+              const factor = Math.exp(-event.deltaY * 0.0012);
+              zoomAtClient(event.clientX, event.clientY, factor);
+            },
+            { passive: false }
+          );
+
+          canvas.addEventListener("contextmenu", (event) => {
+            event.preventDefault();
+          });
+
+          window.addEventListener("pointermove", () => {
+            markActivity();
+          }, { passive: true });
+
+          window.addEventListener("keydown", (event) => {
+            if (event.code === "Space") {
+              event.preventDefault();
+              state.paused = !state.paused;
+              markActivity();
+            }
+
+            if (event.code === "KeyR") {
+              event.preventDefault();
+              applyPreset(state.preset);
+            }
+
+            if (event.code === "Digit1") applyPreset(1);
+            if (event.code === "Digit2") applyPreset(2);
+            if (event.code === "Digit3") applyPreset(3);
+            if (event.code === "Digit4") applyPreset(4);
+
+            if (event.code === "KeyV") {
+              state.showVectors = !state.showVectors;
+              updateToggleButtons();
+            }
+
+            if (event.code === "KeyF") {
+              state.showField = !state.showField;
+              state.fieldNeedsUpdate = true;
+              updateToggleButtons();
+            }
+
+            markActivity();
+          });
+
+          window.addEventListener("resize", resizeCanvas, { passive: true });
+        }
+
+        let lastFrame = performance.now();
+        function loop(now) {
+          const dtRaw = Math.max(0.0001, Math.min(0.033, (now - lastFrame) / 1000));
+          lastFrame = now;
+
+          state.worldTime += dtRaw;
+          applyZoomEasing(dtRaw);
+
+          if (!state.paused && !state.loading) {
+            const dt = dtRaw * state.simSpeed;
+            physicsStep(dt);
+          }
+
+          render(now);
+
+          const instantFps = 1 / dtRaw;
+          state.fps += (instantFps - state.fps) * 0.08;
+          updateHud(now);
+
+          requestAnimationFrame(loop);
+        }
+
+        function maybeShowHelp() {
+          let seen = false;
+          try {
+            seen = localStorage.getItem("particle_galaxy_help_seen") === "1";
+          } catch (error) {
+            seen = false;
+          }
+
+          if (!seen) {
+            shortcutsEl.classList.remove("hidden");
+            state.showHelp = true;
+          } else {
+            shortcutsEl.classList.add("hidden");
+            state.showHelp = false;
+          }
+        }
+
+        async function init() {
+          initPalette();
+          resizeCanvas();
+          bindUI();
+          updateToggleButtons();
+          maybeShowHelp();
+
+          await applyPreset(1);
+          setLoading(false);
+
+          requestAnimationFrame((ts) => {
+            lastFrame = ts;
+            requestAnimationFrame(loop);
+          });
+        }
+
+        init();
+      })();
+    </script>
+  </body>
+</html>
