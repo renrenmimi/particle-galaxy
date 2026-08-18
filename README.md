@@ -26,4 +26,4 @@ An interactive n-body particle sandbox. Pick a starting configuration, then watc
 
 ## Tech
 
-Single-file HTML5 Canvas app. No build step, no dependencies.
+One `index.html` file, Canvas 2D.
