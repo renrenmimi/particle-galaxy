@@ -1,4 +1,4 @@
-# Particle Galaxy 🔬
+# Particle Galaxy
 
 **▶ [Explore it](https://renrenmimi.github.io/particle-galaxy/)** — runs in your browser, nothing to install.
 
