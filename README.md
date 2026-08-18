@@ -4,6 +4,8 @@
 
 An interactive n-body particle sandbox. Pick a starting configuration, then watch gravity do the rest.
 
+![An n-body particle sandbox with live controls](docs/screenshot.jpg)
+
 ## Presets
 
 | Key | Scenario |
